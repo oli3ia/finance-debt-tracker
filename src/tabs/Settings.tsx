@@ -1,0 +1,109 @@
+import { useRef, useState } from 'react';
+import { useStore } from '../store';
+import type { AppState } from '../types';
+import { Card, Button, Empty } from '../components/ui';
+
+export function Settings() {
+  const { state, replaceAll, loadSample, clearAll } = useStore();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [message, setMessage] = useState('');
+
+  const exportJson = () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `finance-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setMessage('Backup downloaded.');
+  };
+
+  const importJson = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text()) as AppState;
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.outgoings)) {
+        throw new Error('unrecognised file');
+      }
+      replaceAll(parsed);
+      setMessage('Backup restored.');
+    } catch {
+      setMessage("Couldn't read that file — is it a backup exported from this app?");
+    }
+  };
+
+  const confirmAnd = (prompt: string, fn: () => void, done: string) => () => {
+    if (window.confirm(prompt)) {
+      fn();
+      setMessage(done);
+    }
+  };
+
+  return (
+    <>
+      <Card title="Backup">
+        <p className="note">
+          Your data lives only in this browser. Export a copy before clearing site data,
+          switching phone, or reinstalling.
+        </p>
+        <div className="btn-row">
+          <Button onClick={exportJson}>Export backup</Button>
+          <Button onClick={() => fileRef.current?.click()}>Import backup</Button>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void importJson(file);
+            e.target.value = '';
+          }}
+        />
+      </Card>
+
+      <Card title="Demo &amp; reset">
+        <p className="note">
+          New here? Load a set of made-up sample figures to see every tab populated, then
+          clear it and enter your own. Nothing is sent anywhere — it all stays in this browser.
+        </p>
+        <div className="btn-row">
+          <Button
+            onClick={confirmAnd(
+              'Load the demo data? This replaces whatever is here now.',
+              loadSample,
+              'Demo data loaded — explore the tabs, then clear it when you’re ready.',
+            )}
+          >
+            Load demo data
+          </Button>
+          <Button
+            variant="danger"
+            onClick={confirmAnd(
+              'Delete all data and start from scratch? This cannot be undone.',
+              clearAll,
+              'All data cleared — the app is now a blank slate.',
+            )}
+          >
+            Clear all data
+          </Button>
+        </div>
+      </Card>
+
+      {message && (
+        <Card>
+          <Empty>{message}</Empty>
+        </Card>
+      )}
+
+      <Card title="About">
+        <p className="note">
+          A mobile-first tracker for income, outgoings, debts and savings goals. Add it to
+          your home screen for an app-like, offline-capable experience: in Safari tap Share →
+          Add to Home Screen; in Chrome tap ⋮ → Add to Home screen.
+        </p>
+      </Card>
+    </>
+  );
+}
