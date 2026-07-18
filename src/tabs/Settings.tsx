@@ -1,10 +1,26 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../store';
 import type { AppState } from '../types';
-import { Card, Button, Empty } from '../components/ui';
+import { Card, Row, Button, Empty } from '../components/ui';
+
+const SYNC_LABEL: Record<string, string> = {
+  idle: 'Synced to your account',
+  syncing: 'Syncing…',
+  error: "Couldn't reach the cloud — changes are saved on this device and will sync later",
+  offline: 'Offline — changes are saved here and will sync when you reconnect',
+};
 
 export function Settings() {
-  const { state, replaceAll, loadSample, clearAll } = useStore();
+  const {
+    state,
+    replaceAll,
+    loadSample,
+    clearAll,
+    cloudEnabled,
+    session,
+    syncStatus,
+    signOut,
+  } = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
 
@@ -41,10 +57,24 @@ export function Settings() {
 
   return (
     <>
+      {cloudEnabled && session && (
+        <Card title="Account">
+          <Row label="Signed in as" value={session.user.email ?? 'your account'} />
+          <Row label="Status" value={SYNC_LABEL[syncStatus] ?? 'Synced'} />
+          <div className="btn-row">
+            <Button onClick={() => void signOut()}>Sign out</Button>
+          </div>
+          <p className="note">
+            Your data is saved to your account and synced to every device you sign in on.
+          </p>
+        </Card>
+      )}
+
       <Card title="Backup">
         <p className="note">
-          Your data lives only in this browser. Export a copy before clearing site data,
-          switching phone, or reinstalling.
+          {cloudEnabled && session
+            ? 'Your data syncs to your account. Export a copy any time for your own records.'
+            : 'Your data lives only in this browser. Export a copy before clearing site data, switching phone, or reinstalling.'}
         </p>
         <div className="btn-row">
           <Button onClick={exportJson}>Export backup</Button>

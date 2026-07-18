@@ -1,4 +1,12 @@
-import type { AppState, MonthKey, Debt, FlexPayment, Goal, Outgoing } from '../types';
+import type {
+  AppState,
+  MonthKey,
+  Debt,
+  Contribution,
+  FlexPayment,
+  Goal,
+  Outgoing,
+} from '../types';
 import { monthKeyOf, monthsBetween, shiftMonth } from './format';
 
 /** The rate/pay in force for a month: the month's override, else the global default. */
@@ -120,6 +128,28 @@ export function paymentFor(debt: Debt, month: MonthKey): number {
   return Math.min(plannedPayment(debt, month), owed);
 }
 
+/* ---------- Logged payments (money put in during the month) ---------- */
+
+/** The dated payments put towards this debt in `month`, earliest first. */
+export function contributionsFor(debt: Debt, month: MonthKey): Contribution[] {
+  return (debt.contributions ?? [])
+    .filter((c) => monthKeyOf(c.date) === month)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Total actually put in against this debt in `month`. */
+export function contributedFor(debt: Debt, month: MonthKey): number {
+  return contributionsFor(debt, month).reduce((sum, c) => sum + c.amount, 0);
+}
+
+/**
+ * What's still to be paid this month against the plan: the amount due this month
+ * (capped at the balance) minus what's already been put in. Never negative.
+ */
+export function leftToPay(debt: Debt, month: MonthKey): number {
+  return Math.max(0, paymentFor(debt, month) - contributedFor(debt, month));
+}
+
 /** Planned payments that will never be taken, because the debt clears first. */
 export function excessPlanned(debt: Debt): number {
   const planned = plannedMonths(debt).reduce((sum, m) => sum + debt.payments[m], 0);
@@ -209,6 +239,16 @@ export function totalOwed(debts: Debt[], month: MonthKey): number {
 /** Planned payments against balances this month. Flexible one-offs are separate. */
 export function totalPayments(debts: Debt[], month: MonthKey): number {
   return debts.reduce((sum, d) => sum + paymentFor(d, month), 0);
+}
+
+/** Money logged against all debts this month, across every card and loan. */
+export function totalContributed(debts: Debt[], month: MonthKey): number {
+  return debts.reduce((sum, d) => sum + contributedFor(d, month), 0);
+}
+
+/** What's still to pay this month across all debts, after money already put in. */
+export function totalLeftToPay(debts: Debt[], month: MonthKey): number {
+  return debts.reduce((sum, d) => sum + leftToPay(d, month), 0);
 }
 
 /**

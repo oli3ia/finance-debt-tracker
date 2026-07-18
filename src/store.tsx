@@ -4,11 +4,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { supabase, supabaseConfigured } from './lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 import type {
   AppState,
+  Contribution,
   Debt,
   FlexPayment,
   Goal,
@@ -20,7 +24,7 @@ import type {
 import { currentMonthKey, shiftMonth, monthsBetween } from './lib/format';
 
 const STORAGE_KEY = 'pay-debt-calc:v1';
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -87,6 +91,11 @@ function sampleState(): AppState {
         startBalance: 1200,
         startMonth: now,
         payments: planFrom(now, [200, 200, 200, 200, 200, 200]),
+        // Part-paid this month, to show the "left to pay" tracker in action.
+        contributions: [
+          { id: uid(), date: `${now}-05`, amount: 120 },
+          { id: uid(), date: `${now}-14`, amount: 30 },
+        ],
         account: 'Main Account',
       },
       {
@@ -95,6 +104,7 @@ function sampleState(): AppState {
         startBalance: 3000,
         startMonth: now,
         payments: planFrom(now, Array<number>(12).fill(250)),
+        contributions: [],
         account: 'Main Account',
       },
       {
@@ -103,6 +113,7 @@ function sampleState(): AppState {
         startBalance: 500,
         startMonth: now,
         payments: planFrom(now, [100, 100, 100, 100, 100]),
+        contributions: [],
         account: 'Spending Account',
       },
     ],
@@ -158,6 +169,7 @@ interface LegacyDebt {
   startBalance?: number;
   startMonth?: MonthKey;
   payments?: Record<MonthKey, number>;
+  contributions?: Contribution[];
   account?: string;
 }
 
@@ -188,6 +200,7 @@ function migrate(
         startBalance: d.startBalance ?? 0,
         startMonth: d.startMonth ?? from,
         payments: d.payments,
+        contributions: d.contributions ?? [],
         account: d.account ?? '',
       });
       continue;
@@ -210,6 +223,7 @@ function migrate(
       startBalance: balance,
       startMonth: from,
       payments,
+      contributions: d.contributions ?? [],
       account: d.account ?? '',
     });
   }
@@ -217,34 +231,49 @@ function migrate(
   return { debts: out, flexPayments: carried };
 }
 
+type StoredState = Partial<AppState> & { debts?: LegacyDebt[] };
+
+/**
+ * Brings any saved shape — from localStorage or the cloud — up to the current
+ * schema, running the debt migration and filling in anything a newer build added.
+ */
+function normalizeState(parsed: StoredState): AppState {
+  const base = emptyState();
+  const migrated = migrate(parsed.debts ?? [], parsed.flexPayments ?? [], currentMonthKey());
+  // Merge against a blank base so a state saved by an older build is still usable.
+  return {
+    ...base,
+    ...parsed,
+    version: SCHEMA_VERSION,
+    overtime: parsed.overtime ?? [],
+    outgoings: parsed.outgoings ?? [],
+    debts: migrated.debts,
+    flexPayments: migrated.flexPayments.map((f) => ({ ...f, account: f.account ?? '' })),
+    // Goals predating `startMonth` were saved for from whenever you looked at them.
+    // Anchor them to this month so they run a fixed span from here.
+    goals: (parsed.goals ?? []).map((g) => ({
+      ...g,
+      startMonth: g.startMonth ?? currentMonthKey(),
+    })),
+    monthOverrides: parsed.monthOverrides ?? {},
+  };
+}
+
+/** Does a value from the cloud actually hold a saved state, versus an empty row? */
+function looksLikeState(value: unknown): value is StoredState {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (Array.isArray((value as StoredState).outgoings) ||
+      typeof (value as StoredState).version === 'number')
+  );
+}
+
 function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyState();
-    const parsed = JSON.parse(raw) as Partial<AppState> & { debts?: LegacyDebt[] };
-    const base = emptyState();
-    const migrated = migrate(
-      parsed.debts ?? [],
-      parsed.flexPayments ?? [],
-      currentMonthKey(),
-    );
-    // Merge against a blank base so a state saved by an older build is still usable.
-    return {
-      ...base,
-      ...parsed,
-      version: SCHEMA_VERSION,
-      overtime: parsed.overtime ?? [],
-      outgoings: parsed.outgoings ?? [],
-      debts: migrated.debts,
-      flexPayments: migrated.flexPayments.map((f) => ({ ...f, account: f.account ?? '' })),
-      // Goals predating `startMonth` were saved for from whenever you looked at them.
-      // Anchor them to this month so they run a fixed span from here.
-      goals: (parsed.goals ?? []).map((g) => ({
-        ...g,
-        startMonth: g.startMonth ?? currentMonthKey(),
-      })),
-      monthOverrides: parsed.monthOverrides ?? {},
-    };
+    return normalizeState(JSON.parse(raw) as StoredState);
   } catch {
     return emptyState();
   }
@@ -271,6 +300,10 @@ interface Store {
   repeatDebtPayment: (id: string, from: MonthKey, to: MonthKey, amount: number) => void;
   /** Cuts the plan back so the payments add up to exactly the balance, no more. */
   trimDebtPlan: (id: string) => void;
+  /** Logs a dated payment put towards a debt during the month. */
+  addDebtContribution: (id: string, date: string, amount: number) => void;
+  updateDebtContribution: (id: string, contribId: string, patch: Partial<Contribution>) => void;
+  removeDebtContribution: (id: string, contribId: string) => void;
   removeDebt: (id: string) => void;
 
   addFlexPayment: (month: MonthKey) => void;
@@ -289,6 +322,19 @@ interface Store {
   /** Loads the illustrative demo dataset, for a first look without typing anything in. */
   loadSample: () => void;
   clearAll: () => void;
+
+  /* ---------- Accounts & cloud sync ---------- */
+  /** Whether a backend is wired up at all. When false, the app runs local-only. */
+  cloudEnabled: boolean;
+  /** True once the initial session check has resolved, so the UI can stop waiting. */
+  authReady: boolean;
+  /** The signed-in session, or null when signed out / local-only. */
+  session: Session | null;
+  /** Where the current state stands relative to the cloud. */
+  syncStatus: 'idle' | 'syncing' | 'error' | 'offline';
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signOut: () => Promise<void>;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -304,6 +350,117 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Quota or private-mode failure — the app still works for this session.
     }
   }, [state]);
+
+  /* ---------- Accounts & cloud sync ----------
+   * The app stays fully usable offline: localStorage above is always the working
+   * copy. When signed in, we mirror it to the user's row in Supabase so the data
+   * follows them to any device. Remote wins on login; local changes push up after.
+   */
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState<boolean>(!supabaseConfigured);
+  const [syncStatus, setSyncStatus] = useState<Store['syncStatus']>('idle');
+
+  // Latest state, readable inside async callbacks without re-subscribing.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  // Skip the save that would immediately echo a just-loaded remote state back up.
+  const applyingRemote = useRef(false);
+  // The user whose remote data we've already pulled, so login only loads once.
+  const loadedFor = useRef<string | null>(null);
+
+  const pushState = useCallback(async (userId: string, next: AppState) => {
+    if (!supabase) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setSyncStatus('offline');
+      return;
+    }
+    setSyncStatus('syncing');
+    const { error } = await supabase
+      .from('app_state')
+      .upsert({ user_id: userId, state: next, updated_at: new Date().toISOString() });
+    setSyncStatus(error ? 'error' : 'idle');
+  }, []);
+
+  // Track the auth session.
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // On login, pull the account's data. If the account has none yet, seed it from
+  // whatever is already on this device — so a first sign-in never loses local data.
+  useEffect(() => {
+    if (!supabase || !session) return;
+    const userId = session.user.id;
+    if (loadedFor.current === userId) return;
+    loadedFor.current = userId;
+
+    void (async () => {
+      setSyncStatus('syncing');
+      const { data, error } = await supabase
+        .from('app_state')
+        .select('state')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) {
+        setSyncStatus('error');
+        return;
+      }
+      if (data && looksLikeState(data.state)) {
+        applyingRemote.current = true;
+        setState(normalizeState(data.state));
+        setSyncStatus('idle');
+      } else {
+        await pushState(userId, stateRef.current);
+      }
+    })();
+  }, [session, pushState]);
+
+  // Push local changes up (debounced), once signed in.
+  useEffect(() => {
+    if (!supabase || !session) return;
+    if (applyingRemote.current) {
+      applyingRemote.current = false;
+      return;
+    }
+    const t = setTimeout(() => void pushState(session.user.id, state), 800);
+    return () => clearTimeout(t);
+  }, [state, session, pushState]);
+
+  // Flush the latest state when the connection comes back.
+  useEffect(() => {
+    if (!supabase) return;
+    const onOnline = () => {
+      if (session) void pushState(session.user.id, stateRef.current);
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [session, pushState]);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    if (!supabase) return { error: 'Cloud sync is not configured.' };
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error?.message ?? null };
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string) => {
+    if (!supabase) return { error: 'Cloud sync is not configured.' };
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error: error?.message ?? null };
+  }, []);
+
+  const signOut = useCallback(async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    loadedFor.current = null;
+  }, []);
 
   const patchList = useCallback(
     <K extends 'outgoings' | 'debts' | 'goals' | 'overtime' | 'flexPayments'>(
@@ -372,6 +529,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               startBalance: 0,
               startMonth: month,
               payments: {},
+              contributions: [],
               account: '',
             },
           ],
@@ -422,6 +580,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             return { ...d, payments };
           }),
         })),
+      addDebtContribution: (id, date, amount) =>
+        setState((s) => ({
+          ...s,
+          debts: s.debts.map((d) =>
+            d.id === id
+              ? { ...d, contributions: [...d.contributions, { id: uid(), date, amount }] }
+              : d,
+          ),
+        })),
+      updateDebtContribution: (id, contribId, patch) =>
+        setState((s) => ({
+          ...s,
+          debts: s.debts.map((d) =>
+            d.id === id
+              ? {
+                  ...d,
+                  contributions: d.contributions.map((c) =>
+                    c.id === contribId ? { ...c, ...patch } : c,
+                  ),
+                }
+              : d,
+          ),
+        })),
+      removeDebtContribution: (id, contribId) =>
+        setState((s) => ({
+          ...s,
+          debts: s.debts.map((d) =>
+            d.id === id
+              ? { ...d, contributions: d.contributions.filter((c) => c.id !== contribId) }
+              : d,
+          ),
+        })),
       removeDebt: (id) => removeFrom('debts', id),
 
       // Belongs to one month only. Deleting it touches nothing else.
@@ -470,8 +660,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       replaceAll: (next) => setState({ ...next, version: SCHEMA_VERSION }),
       loadSample: () => setState(sampleState()),
       clearAll: () => setState(emptyState()),
+
+      cloudEnabled: supabaseConfigured,
+      authReady,
+      session,
+      syncStatus,
+      signIn,
+      signUp,
+      signOut,
     }),
-    [state, month, patchList, removeFrom],
+    [
+      state,
+      month,
+      patchList,
+      removeFrom,
+      authReady,
+      session,
+      syncStatus,
+      signIn,
+      signUp,
+      signOut,
+    ],
   );
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;

@@ -5,6 +5,9 @@ import {
   monthlyRequired,
   openingBalance,
   paymentFor,
+  leftToPay,
+  totalPayments,
+  totalLeftToPay,
   isCleared,
   flexFor,
   isSavingIn,
@@ -19,6 +22,8 @@ export function Dashboard({ onGo }: { onGo: (tab: string) => void }) {
   const accounts = moneyOutByAccount(state, month);
   const short = s.remaining < 0;
   const active = state.debts.filter((d) => !isCleared(d, month));
+  const debtPaying = totalPayments(state.debts, month);
+  const leftThisMonth = totalLeftToPay(state.debts, month);
   const flex = flexFor(state.flexPayments, month);
   const savingNow = state.goals.filter((g) => isSavingIn(g, month)).length;
 
@@ -154,17 +159,35 @@ export function Dashboard({ onGo }: { onGo: (tab: string) => void }) {
           active.map((d) => {
             const payment = paymentFor(d, month);
             const opening = Math.max(0, openingBalance(d, month));
+            const left = leftToPay(d, month);
             return (
               <Row
                 key={d.id}
                 label={d.name || 'Untitled'}
                 sub={
-                  payment > 0 ? `paying ${money(payment)} this month` : 'no payment planned'
+                  payment <= 0
+                    ? 'no payment planned'
+                    : left <= 0.005
+                      ? `${money(payment)} paid this month ✓`
+                      : `${money(left)} left of ${money(payment)} this month`
                 }
                 value={money(opening)}
               />
             );
           })
+        )}
+
+        {debtPaying > 0 && (
+          <>
+            <div className="divider" />
+            <Row
+              label={`Left to pay in ${monthLabel(month)}`}
+              sub="across your cards & loans, after payments logged"
+              value={leftThisMonth <= 0.005 ? 'All paid ✓' : money(leftThisMonth)}
+              tone={leftThisMonth <= 0.005 ? 'positive' : undefined}
+              strong
+            />
+          </>
         )}
 
         {flex.length > 0 && (

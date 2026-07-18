@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StoreProvider, useStore } from './store';
 import { monthLabel, currentMonthKey } from './lib/format';
+import { Auth } from './Auth';
 import { Dashboard } from './tabs/Dashboard';
 import { Income } from './tabs/Income';
 import { Outgoings } from './tabs/Outgoings';
@@ -84,10 +85,29 @@ function Shell() {
   );
 }
 
+/** Decides between the loading state, the sign-in gate, and the app itself. */
+function Gate() {
+  const { cloudEnabled, authReady, session } = useStore();
+
+  // Local-only build (no backend configured): straight into the app.
+  if (!cloudEnabled) return <Shell />;
+  // Wait for the initial session check so we don't flash the sign-in screen.
+  if (!authReady) {
+    return (
+      <div className="auth">
+        <div className="auth-inner">
+          <p className="auth-sub">Loading…</p>
+        </div>
+      </div>
+    );
+  }
+  return session ? <Shell /> : <Auth />;
+}
+
 export default function App() {
   return (
     <StoreProvider>
-      <Shell />
+      <Gate />
     </StoreProvider>
   );
 }

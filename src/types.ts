@@ -11,6 +11,14 @@ export interface Outgoing {
   category: string;
 }
 
+/** A single dated payment put towards a debt during the month, e.g. £100 on the 10th. */
+export interface Contribution {
+  id: string;
+  /** ISO `YYYY-MM-DD`. The month it belongs to is derived from this. */
+  date: string;
+  amount: number;
+}
+
 /** A card or loan: `startBalance` is drawn down by each payment made against it. */
 export interface Debt {
   id: string;
@@ -20,6 +28,12 @@ export interface Debt {
   startMonth: MonthKey;
   /** Planned payment per month. Months vary, so each is logged individually. */
   payments: Record<MonthKey, number>;
+  /**
+   * Actual money put in throughout each month, logged as it happens. These track
+   * progress against the month's planned payment — how much is left to pay — and
+   * don't affect the payoff projection, which stays driven by `payments`.
+   */
+  contributions: Contribution[];
   /** Which account the payment leaves from, so the by-account totals stay complete. */
   account: string;
 }

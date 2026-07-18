@@ -13,11 +13,23 @@ import {
   clearedMonth,
   plannedPayment,
   excessPlanned,
+  contributionsFor,
+  contributedFor,
+  leftToPay,
+  totalLeftToPay,
+  totalContributed,
   flexFor,
   flexTotal,
   flexNames,
 } from '../lib/calc';
-import { money, hours, monthLabel, shiftMonth } from '../lib/format';
+import {
+  money,
+  hours,
+  monthLabel,
+  shiftMonth,
+  monthBounds,
+  dayLabel,
+} from '../lib/format';
 import type { Debt } from '../types';
 import {
   Card,
@@ -34,9 +46,21 @@ import {
 
 /** One card or loan, for the month on screen. */
 function DebtEntry({ debt, month }: { debt: Debt; month: string }) {
-  const { updateDebt, setDebtPayment, repeatDebtPayment, trimDebtPlan, removeDebt } =
-    useStore();
+  const {
+    updateDebt,
+    setDebtPayment,
+    repeatDebtPayment,
+    trimDebtPlan,
+    addDebtContribution,
+    updateDebtContribution,
+    removeDebtContribution,
+    removeDebt,
+  } = useStore();
   const [repeatTo, setRepeatTo] = useState(shiftMonth(month, 11));
+
+  const { min, max } = monthBounds(month);
+  const [payDate, setPayDate] = useState(min);
+  const [payAmount, setPayAmount] = useState(0);
 
   const opening = openingBalance(debt, month);
   const closing = closingBalance(debt, month);
@@ -46,6 +70,19 @@ function DebtEntry({ debt, month }: { debt: Debt; month: string }) {
   // Money the plan asks for that will never actually be taken.
   const excess = excessPlanned(debt);
   const cappedThisMonth = planned > payment + 0.005;
+
+  const logged = contributionsFor(debt, month);
+  const putIn = contributedFor(debt, month);
+  const left = leftToPay(debt, month);
+  const fullyPaid = payment > 0.005 && left <= 0.005;
+
+  const logPayment = () => {
+    if (payAmount <= 0) return;
+    // Guard against a date picker that ignored min/max.
+    const day = payDate >= min && payDate <= max ? payDate : min;
+    addDebtContribution(debt.id, day, payAmount);
+    setPayAmount(0);
+  };
 
   return (
     <li className="entry">
@@ -132,6 +169,62 @@ function DebtEntry({ debt, month }: { debt: Debt; month: string }) {
         strong
       />
 
+      {payment > 0.005 && (
+        <>
+          <div className="divider" />
+
+          <Row
+            label={`Left to pay in ${monthLabel(month)}`}
+            sub={putIn > 0 ? `${money(putIn)} put in of ${money(payment)}` : undefined}
+            value={fullyPaid ? 'Paid ✓' : money(left)}
+            tone={fullyPaid ? 'positive' : undefined}
+            strong
+          />
+
+          <div className="log-form">
+            <Field label="Date">
+              <input
+                className="input"
+                type="date"
+                value={payDate}
+                min={min}
+                max={max}
+                onChange={(e) => setPayDate(e.target.value)}
+              />
+            </Field>
+            <Field label="Amount put in">
+              <NumberInput value={payAmount} onChange={setPayAmount} prefix="£" />
+            </Field>
+          </div>
+          <Button variant="primary" onClick={logPayment}>
+            + Log payment
+          </Button>
+
+          {logged.length > 0 && (
+            <ul className="list">
+              {logged.map((c) => (
+                <li key={c.id} className="list-item">
+                  <div className="list-main">
+                    <span className="list-title">{dayLabel(c.date)}</span>
+                  </div>
+                  <div className="list-edit">
+                    <NumberInput
+                      value={c.amount}
+                      onChange={(amount) => updateDebtContribution(debt.id, c.id, { amount })}
+                      prefix="£"
+                    />
+                    <DeleteButton
+                      onClick={() => removeDebtContribution(debt.id, c.id)}
+                      label={`Delete payment on ${c.date}`}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
       {clearsThisMonth && (
         <p className="entry-foot">
           Paid off this month 🎉 It drops off the list from {monthLabel(shiftMonth(month, 1))}.
@@ -170,6 +263,9 @@ export function Debts() {
   const flexPaying = flexTotal(flexPayments, month);
   const paying = debtPaying + flexPaying;
 
+  const putIn = totalContributed(debts, month);
+  const leftThisMonth = totalLeftToPay(debts, month);
+
   const rate = rateFor(state, month);
   const plan = payoff(debts, month);
   const upcoming = schedule(debts, flexPayments, month, 12);
@@ -201,6 +297,19 @@ export function Debts() {
             }
           />
         </div>
+        {debtPaying > 0 && (
+          <Row
+            label={`Left to pay in ${monthLabel(month)}`}
+            sub={
+              putIn > 0
+                ? `${money(putIn)} put in of ${money(debtPaying)} across your cards & loans`
+                : 'log payments against each debt as you make them'
+            }
+            value={leftThisMonth <= 0.005 ? 'All paid ✓' : money(leftThisMonth)}
+            tone={leftThisMonth <= 0.005 ? 'positive' : undefined}
+            strong
+          />
+        )}
         {paying > 0 && rate > 0 && (
           <Row
             label="Overtime to cover this month"
