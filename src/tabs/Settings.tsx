@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../store';
 import type { AppState } from '../types';
-import { Card, Row, Field, Button, Empty } from '../components/ui';
+import { Card, Row, Button, Empty } from '../components/ui';
+import { PasswordFields } from '../components/PasswordFields';
+import { passwordOk } from '../lib/password';
 
 const SYNC_LABEL: Record<string, string> = {
   idle: 'Synced to your account',
@@ -25,20 +27,28 @@ export function Settings() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [pwMessage, setPwMessage] = useState('');
   const [pwBusy, setPwBusy] = useState(false);
 
   const changePassword = async () => {
     setPwMessage('');
-    if (newPassword.length < 6) {
-      setPwMessage('Choose a password of at least 6 characters.');
+    if (!passwordOk(newPassword)) {
+      setPwMessage('Your password does not meet all the requirements listed.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwMessage("The passwords don't match.");
       return;
     }
     setPwBusy(true);
     const { error } = await updatePassword(newPassword);
     setPwBusy(false);
     setPwMessage(error ?? 'Password updated.');
-    if (!error) setNewPassword('');
+    if (!error) {
+      setNewPassword('');
+      setConfirmPassword('');
+    }
   };
 
   const exportJson = () => {
@@ -81,16 +91,14 @@ export function Settings() {
 
           <div className="divider" />
 
-          <Field label="Change password">
-            <input
-              className="input"
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              placeholder="New password (min 6 characters)"
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-          </Field>
+          <p className="section-label">Change password</p>
+          <PasswordFields
+            password={newPassword}
+            setPassword={setNewPassword}
+            confirm={confirmPassword}
+            setConfirm={setConfirmPassword}
+            label="New password"
+          />
           <div className="btn-row">
             <Button onClick={() => void changePassword()}>
               {pwBusy ? 'Saving…' : 'Update password'}

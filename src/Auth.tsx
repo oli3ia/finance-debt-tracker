@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useStore } from './store';
 import { Card, Field, Button } from './components/ui';
+import { PasswordFields } from './components/PasswordFields';
+import { passwordOk } from './lib/password';
 
 type Mode = 'in' | 'up' | 'forgot';
 
@@ -10,6 +12,7 @@ export function Auth() {
   const [mode, setMode] = useState<Mode>('in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -18,6 +21,8 @@ export function Auth() {
     setMode(next);
     setError('');
     setMessage('');
+    setPassword('');
+    setConfirm('');
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -40,8 +45,21 @@ export function Auth() {
       return;
     }
 
-    if (!email.trim() || password.length < 6) {
-      setError('Enter an email and a password of at least 6 characters.');
+    if (!email.trim()) {
+      setError('Enter your email address.');
+      return;
+    }
+    if (mode === 'up') {
+      if (!passwordOk(password)) {
+        setError('Your password does not meet all the requirements below.');
+        return;
+      }
+      if (password !== confirm) {
+        setError("The passwords don't match.");
+        return;
+      }
+    } else if (!password) {
+      setError('Enter your password.');
       return;
     }
     setBusy(true);
@@ -55,9 +73,8 @@ export function Auth() {
       return;
     }
     if (mode === 'up') {
-      setMessage('Account created. If asked, confirm your email, then sign in.');
       switchTo('in');
-      setPassword('');
+      setMessage('Account created. If asked, confirm your email, then sign in.');
     }
     // On sign-in success the session appears and this screen unmounts on its own.
   };
@@ -89,17 +106,25 @@ export function Auth() {
                 placeholder="you@example.com"
               />
             </Field>
-            {mode !== 'forgot' && (
+            {mode === 'in' && (
               <Field label="Password">
                 <input
                   className="input"
                   type="password"
-                  autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="Your password"
                 />
               </Field>
+            )}
+            {mode === 'up' && (
+              <PasswordFields
+                password={password}
+                setPassword={setPassword}
+                confirm={confirm}
+                setConfirm={setConfirm}
+              />
             )}
 
             {error && <p className="auth-error">{error}</p>}
@@ -138,6 +163,7 @@ export function Auth() {
 export function ResetPassword() {
   const { updatePassword } = useStore();
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -145,8 +171,12 @@ export function ResetPassword() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (password.length < 6) {
-      setError('Choose a password of at least 6 characters.');
+    if (!passwordOk(password)) {
+      setError('Your password does not meet all the requirements below.');
+      return;
+    }
+    if (password !== confirm) {
+      setError("The passwords don't match.");
       return;
     }
     setBusy(true);
@@ -170,16 +200,13 @@ export function ResetPassword() {
             <p className="auth-message">Password updated — you're signed in.</p>
           ) : (
             <form onSubmit={submit}>
-              <Field label="New password">
-                <input
-                  className="input"
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                />
-              </Field>
+              <PasswordFields
+                password={password}
+                setPassword={setPassword}
+                confirm={confirm}
+                setConfirm={setConfirm}
+                label="New password"
+              />
               {error && <p className="auth-error">{error}</p>}
               <Button type="submit" variant="primary">
                 {busy ? 'Please wait…' : 'Save new password'}

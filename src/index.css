@@ -308,6 +308,27 @@ body {
   text-align: center;
 }
 
+.pw-rules {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.pw-rules li span {
+  display: inline-block;
+  width: 1.2em;
+  text-align: center;
+}
+
+.pw-rules li.met {
+  color: var(--positive);
+}
+
 /* ---------- Hero & stats ---------- */
 
 .hero {
