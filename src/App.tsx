@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StoreProvider, useStore } from './store';
 import { monthLabel, currentMonthKey } from './lib/format';
-import { Auth } from './Auth';
+import { Auth, ResetPassword } from './Auth';
 import { Dashboard } from './tabs/Dashboard';
 import { Income } from './tabs/Income';
 import { Outgoings } from './tabs/Outgoings';
@@ -87,7 +87,7 @@ function Shell() {
 
 /** Decides between the loading state, the sign-in gate, and the app itself. */
 function Gate() {
-  const { cloudEnabled, authReady, session } = useStore();
+  const { cloudEnabled, authReady, session, recovering } = useStore();
 
   // Local-only build (no backend configured): straight into the app.
   if (!cloudEnabled) return <Shell />;
@@ -101,6 +101,8 @@ function Gate() {
       </div>
     );
   }
+  // Following a reset link takes priority — prompt for the new password.
+  if (recovering) return <ResetPassword />;
   return session ? <Shell /> : <Auth />;
 }
 

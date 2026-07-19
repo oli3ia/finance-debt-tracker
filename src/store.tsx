@@ -330,11 +330,17 @@ interface Store {
   authReady: boolean;
   /** The signed-in session, or null when signed out / local-only. */
   session: Session | null;
+  /** True after following a password-reset link, so the UI can prompt for a new one. */
+  recovering: boolean;
   /** Where the current state stands relative to the cloud. */
   syncStatus: 'idle' | 'syncing' | 'error' | 'offline';
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  /** Emails a reset link to someone locked out of their account. */
+  sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  /** Sets a new password — for the reset flow, or for a signed-in user changing it. */
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -358,6 +364,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
    */
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState<boolean>(!supabaseConfigured);
+  const [recovering, setRecovering] = useState(false);
   const [syncStatus, setSyncStatus] = useState<Store['syncStatus']>('idle');
 
   // Latest state, readable inside async callbacks without re-subscribing.
@@ -388,7 +395,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setAuthReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+      // Arriving via a reset link: show the "set a new password" prompt.
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true);
       setSession(next);
     });
     return () => sub.subscription.unsubscribe();
@@ -460,6 +469,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!supabase) return;
     await supabase.auth.signOut();
     loadedFor.current = null;
+  }, []);
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    if (!supabase) return { error: 'Cloud sync is not configured.' };
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    return { error: error?.message ?? null };
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabase) return { error: 'Cloud sync is not configured.' };
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) setRecovering(false);
+    return { error: error?.message ?? null };
   }, []);
 
   const patchList = useCallback(
@@ -664,10 +688,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cloudEnabled: supabaseConfigured,
       authReady,
       session,
+      recovering,
       syncStatus,
       signIn,
       signUp,
       signOut,
+      sendPasswordReset,
+      updatePassword,
     }),
     [
       state,
@@ -676,10 +703,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removeFrom,
       authReady,
       session,
+      recovering,
       syncStatus,
       signIn,
       signUp,
       signOut,
+      sendPasswordReset,
+      updatePassword,
     ],
   );
 

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../store';
 import type { AppState } from '../types';
-import { Card, Row, Button, Empty } from '../components/ui';
+import { Card, Row, Field, Button, Empty } from '../components/ui';
 
 const SYNC_LABEL: Record<string, string> = {
   idle: 'Synced to your account',
@@ -20,9 +20,26 @@ export function Settings() {
     session,
     syncStatus,
     signOut,
+    updatePassword,
   } = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [pwMessage, setPwMessage] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+
+  const changePassword = async () => {
+    setPwMessage('');
+    if (newPassword.length < 6) {
+      setPwMessage('Choose a password of at least 6 characters.');
+      return;
+    }
+    setPwBusy(true);
+    const { error } = await updatePassword(newPassword);
+    setPwBusy(false);
+    setPwMessage(error ?? 'Password updated.');
+    if (!error) setNewPassword('');
+  };
 
   const exportJson = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -61,9 +78,27 @@ export function Settings() {
         <Card title="Account">
           <Row label="Signed in as" value={session.user.email ?? 'your account'} />
           <Row label="Status" value={SYNC_LABEL[syncStatus] ?? 'Synced'} />
+
+          <div className="divider" />
+
+          <Field label="Change password">
+            <input
+              className="input"
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              placeholder="New password (min 6 characters)"
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </Field>
           <div className="btn-row">
+            <Button onClick={() => void changePassword()}>
+              {pwBusy ? 'Saving…' : 'Update password'}
+            </Button>
             <Button onClick={() => void signOut()}>Sign out</Button>
           </div>
+          {pwMessage && <p className="note">{pwMessage}</p>}
+
           <p className="note">
             Your data is saved to your account and synced to every device you sign in on.
           </p>
