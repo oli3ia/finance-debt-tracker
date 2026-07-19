@@ -329,6 +329,153 @@ body {
   color: var(--positive);
 }
 
+/* ---------- Meters & rings ---------- */
+
+.meter {
+  background: var(--track, #e6e8ee);
+  border-radius: 99px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.meter-sm { height: 6px; }
+.meter-md { height: 8px; }
+.meter-lg { height: 12px; }
+
+.meter > i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+}
+
+.meter > i.done {
+  background: var(--positive);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .meter > i {
+    transition: width 0.35s ease;
+  }
+}
+
+/* Caption line under a meter: label left, figure right. */
+.meter-cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.meter-cap .num {
+  font-variant-numeric: tabular-nums;
+}
+
+.ring {
+  flex: 0 0 auto;
+  transform: rotate(-90deg);
+}
+
+.ring-track {
+  fill: none;
+  stroke: var(--track, #e6e8ee);
+  stroke-width: 3.4;
+}
+
+.ring-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+
+.ring-fill.done {
+  stroke: var(--positive);
+}
+
+/* Income-split stacked bar (dashboard hero) */
+.stack {
+  display: flex;
+  height: 12px;
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 14px 0 8px;
+  background: var(--track);
+}
+
+.stack > span {
+  display: block;
+  height: 100%;
+}
+
+.stack .s-out,
+.dot.out {
+  background: var(--accent);
+}
+.stack .s-debt,
+.dot.debt {
+  background: color-mix(in srgb, var(--accent) 55%, var(--surface));
+}
+.stack .s-save,
+.dot.save {
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface));
+}
+.stack .s-left,
+.dot.left {
+  background: var(--positive);
+}
+
+.keyrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+/* Dashboard debt row + payoff meter */
+.dash-debt .row {
+  padding-bottom: 3px;
+}
+.dash-debt .meter {
+  margin-bottom: 9px;
+}
+
+/* Dashboard goal row with leading ring */
+.goal-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.goal-line .row {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Track token, defined here so meters work without touching :root elsewhere. */
+:root {
+  --track: #e6e8ee;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --track: #262b34;
+  }
+}
+
 /* ---------- Hero & stats ---------- */
 
 .hero {

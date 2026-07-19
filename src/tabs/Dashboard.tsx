@@ -14,7 +14,7 @@ import {
   goalWindow,
 } from '../lib/calc';
 import { money, hours, monthLabel } from '../lib/format';
-import { Card, Row, Stat, Empty } from '../components/ui';
+import { Card, Row, Stat, Meter, Ring, Empty } from '../components/ui';
 
 export function Dashboard({ onGo }: { onGo: (tab: string) => void }) {
   const { state, month } = useStore();
@@ -41,6 +41,23 @@ export function Dashboard({ onGo }: { onGo: (tab: string) => void }) {
             after outgoings, debt payments and savings · {monthLabel(month)}
           </span>
         </div>
+
+        {!short && s.totalIncome > 0 && (
+          <>
+            <div className="stack" role="img" aria-label="Where this month's income goes">
+              <span className="s-out" style={{ width: `${(s.totalOutgoings / s.totalIncome) * 100}%` }} />
+              <span className="s-debt" style={{ width: `${(s.totalDebtPayments / s.totalIncome) * 100}%` }} />
+              <span className="s-save" style={{ width: `${(s.totalSavings / s.totalIncome) * 100}%` }} />
+              <span className="s-left" style={{ width: `${(Math.max(0, s.remaining) / s.totalIncome) * 100}%` }} />
+            </div>
+            <div className="keyrow">
+              <span className="key"><span className="dot out" />Outgoings {money(s.totalOutgoings)}</span>
+              <span className="key"><span className="dot debt" />Debt {money(s.totalDebtPayments)}</span>
+              <span className="key"><span className="dot save" />Savings {money(s.totalSavings)}</span>
+              <span className="key"><span className="dot left" />Left {money(s.remaining)}</span>
+            </div>
+          </>
+        )}
       </Card>
 
       {short && (
@@ -161,18 +178,22 @@ export function Dashboard({ onGo }: { onGo: (tab: string) => void }) {
             const opening = Math.max(0, openingBalance(d, month));
             const left = leftToPay(d, month);
             return (
-              <Row
-                key={d.id}
-                label={d.name || 'Untitled'}
-                sub={
-                  payment <= 0
-                    ? 'no payment planned'
-                    : left <= 0.005
-                      ? `${money(payment)} paid this month ✓`
-                      : `${money(left)} left of ${money(payment)} this month`
-                }
-                value={money(opening)}
-              />
+              <div key={d.id} className="dash-debt">
+                <Row
+                  label={d.name || 'Untitled'}
+                  sub={
+                    payment <= 0
+                      ? 'no payment planned'
+                      : left <= 0.005
+                        ? `${money(payment)} paid this month ✓`
+                        : `${money(left)} left of ${money(payment)} this month`
+                  }
+                  value={money(opening)}
+                />
+                {d.startBalance > 0.005 && (
+                  <Meter value={d.startBalance - opening} max={d.startBalance} size="sm" />
+                )}
+              </div>
             );
           })
         )}
@@ -236,19 +257,21 @@ export function Dashboard({ onGo }: { onGo: (tab: string) => void }) {
             const saving = isSavingIn(g, month);
             const w = goalWindow(g);
             return (
-              <Row
-                key={g.id}
-                label={g.name || 'Untitled goal'}
-                sub={
-                  saving
-                    ? `${money(g.saved)} of ${money(g.targetCost)} · until ${monthLabel(w.end)}`
-                    : month > w.end
-                      ? `finished ${monthLabel(w.end)}`
-                      : `starts ${monthLabel(w.start)}`
-                }
-                value={saving ? `${money(monthlyRequired(g, month))}/mo` : '—'}
-                tone={saving ? undefined : 'muted'}
-              />
+              <div key={g.id} className="goal-line">
+                <Ring value={g.saved} max={g.targetCost} size={38} />
+                <Row
+                  label={g.name || 'Untitled goal'}
+                  sub={
+                    saving
+                      ? `${money(g.saved)} of ${money(g.targetCost)} · until ${monthLabel(w.end)}`
+                      : month > w.end
+                        ? `finished ${monthLabel(w.end)}`
+                        : `starts ${monthLabel(w.start)}`
+                  }
+                  value={saving ? `${money(monthlyRequired(g, month))}/mo` : '—'}
+                  tone={saving ? undefined : 'muted'}
+                />
+              </div>
             );
           })}
           <div className="divider" />

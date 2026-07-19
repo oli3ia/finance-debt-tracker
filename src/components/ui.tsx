@@ -67,6 +67,44 @@ export function Stat({
   );
 }
 
+/** A horizontal progress bar. `value`/`max` set the fill; `tone` colours it. */
+export function Meter({
+  value,
+  max,
+  tone = 'accent',
+  size = 'md',
+}: {
+  value: number;
+  max: number;
+  tone?: 'accent' | 'positive';
+  size?: 'sm' | 'md' | 'lg';
+}) {
+  const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
+  return (
+    <div className={`meter meter-${size}`}>
+      <i className={tone === 'positive' ? 'done' : ''} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+/** A circular progress ring, `size` px across. Fills clockwise from the top. */
+export function Ring({ value, max, size = 44 }: { value: number; max: number; size?: number }) {
+  const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
+  const done = pct >= 99.5;
+  return (
+    <svg className="ring" width={size} height={size} viewBox="0 0 36 36" aria-hidden="true">
+      <circle className="ring-track" cx="18" cy="18" r="15.915" />
+      <circle
+        className={`ring-fill${done ? ' done' : ''}`}
+        cx="18"
+        cy="18"
+        r="15.915"
+        strokeDasharray={`${pct} 100`}
+      />
+    </svg>
+  );
+}
+
 export function Field({
   label,
   children,

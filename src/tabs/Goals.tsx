@@ -5,6 +5,7 @@ import {
   Card,
   Row,
   Field,
+  Meter,
   NumberInput,
   TextInput,
   Button,
@@ -75,6 +76,23 @@ export function Goals() {
                       label={`Delete ${g.name || 'goal'}`}
                     />
                   </div>
+
+                  {g.targetCost > 0 && (
+                    <>
+                      <Meter
+                        value={g.saved}
+                        max={g.targetCost}
+                        tone={g.saved >= g.targetCost ? 'positive' : 'accent'}
+                        size="sm"
+                      />
+                      <div className="meter-cap">
+                        <span>{Math.round((Math.min(g.saved, g.targetCost) / g.targetCost) * 100)}% saved</span>
+                        <span className="num">
+                          {money(g.saved)} of {money(g.targetCost)}
+                        </span>
+                      </div>
+                    </>
+                  )}
 
                   <div className="entry-grid">
                     <Field label="Target cost">

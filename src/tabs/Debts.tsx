@@ -36,6 +36,7 @@ import {
   Row,
   Stat,
   Field,
+  Meter,
   NumberInput,
   TextInput,
   Button,
@@ -169,6 +170,23 @@ function DebtEntry({ debt, month }: { debt: Debt; month: string }) {
         strong
       />
 
+      {debt.startBalance > 0.005 && (
+        <>
+          <Meter
+            value={debt.startBalance - closing}
+            max={debt.startBalance}
+            tone={closing <= 0.005 ? 'positive' : 'accent'}
+            size="sm"
+          />
+          <div className="meter-cap">
+            <span>{Math.round(((debt.startBalance - closing) / debt.startBalance) * 100)}% cleared</span>
+            <span className="num">
+              {money(Math.max(0, debt.startBalance - closing))} of {money(debt.startBalance)}
+            </span>
+          </div>
+        </>
+      )}
+
       {payment > 0.005 && (
         <>
           <div className="divider" />
@@ -180,6 +198,7 @@ function DebtEntry({ debt, month }: { debt: Debt; month: string }) {
             tone={fullyPaid ? 'positive' : undefined}
             strong
           />
+          <Meter value={putIn} max={payment} tone={fullyPaid ? 'positive' : 'accent'} />
 
           <div className="log-form">
             <Field label="Date">
@@ -298,17 +317,24 @@ export function Debts() {
           />
         </div>
         {debtPaying > 0 && (
-          <Row
-            label={`Left to pay in ${monthLabel(month)}`}
-            sub={
-              putIn > 0
-                ? `${money(putIn)} put in of ${money(debtPaying)} across your cards & loans`
-                : 'log payments against each debt as you make them'
-            }
-            value={leftThisMonth <= 0.005 ? 'All paid ✓' : money(leftThisMonth)}
-            tone={leftThisMonth <= 0.005 ? 'positive' : undefined}
-            strong
-          />
+          <>
+            <Row
+              label={`Left to pay in ${monthLabel(month)}`}
+              sub={
+                putIn > 0
+                  ? `${money(putIn)} put in of ${money(debtPaying)} across your cards & loans`
+                  : 'log payments against each debt as you make them'
+              }
+              value={leftThisMonth <= 0.005 ? 'All paid ✓' : money(leftThisMonth)}
+              tone={leftThisMonth <= 0.005 ? 'positive' : undefined}
+              strong
+            />
+            <Meter
+              value={putIn}
+              max={debtPaying}
+              tone={leftThisMonth <= 0.005 ? 'positive' : 'accent'}
+            />
+          </>
         )}
         {paying > 0 && rate > 0 && (
           <Row
