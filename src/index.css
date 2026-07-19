@@ -46,14 +46,16 @@ body {
 .app {
   max-width: 640px;
   margin: 0 auto;
-  min-height: 100dvh;
+  /* A fixed-height shell: the app never scrolls, only .content inside it does,
+     so the header and tab bar stay put. */
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
 .topbar {
-  position: sticky;
-  top: 0;
+  flex: 0 0 auto;
   z-index: 10;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -107,7 +109,13 @@ body {
 }
 
 .content {
-  flex: 1;
+  flex: 1 1 auto;
+  /* min-height:0 lets this flex child actually shrink and scroll instead of
+     pushing the tab bar off-screen. */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 16px 16px 24px;
   display: flex;
   flex-direction: column;
@@ -115,8 +123,7 @@ body {
 }
 
 .tabbar {
-  position: sticky;
-  bottom: 0;
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   background: var(--surface);
