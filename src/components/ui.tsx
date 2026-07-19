@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 export function Card({
   title,
@@ -246,6 +246,99 @@ export function DeleteButton({ onClick, label }: { onClick: () => void; label: s
 
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="empty">{children}</p>;
+}
+
+/** A collapsed one-line summary that expands to reveal its editor when tapped. */
+export function AccordionRow({
+  title,
+  sub,
+  value,
+  tone,
+  defaultOpen = false,
+  children,
+}: {
+  title: ReactNode;
+  sub?: ReactNode;
+  value?: ReactNode;
+  tone?: 'positive' | 'muted';
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <li className={`qrow${open ? ' open' : ''}`}>
+      <button
+        type="button"
+        className="qrow-sum"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        <span className="qrow-main">
+          <span className="qrow-name">{title}</span>
+          {sub && <span className="qrow-sub">{sub}</span>}
+        </span>
+        {value != null && <span className={`qrow-amt${tone ? ` ${tone}` : ''}`}>{value}</span>}
+        <span className="chev" aria-hidden="true">›</span>
+      </button>
+      {open && <div className="qrow-edit">{children}</div>}
+    </li>
+  );
+}
+
+/** A one-line "name + amount + add" bar for quickly adding a list item. */
+export function QuickAdd({
+  placeholder,
+  amountPlaceholder = '0',
+  onAdd,
+}: {
+  placeholder: string;
+  amountPlaceholder?: string;
+  onAdd: (name: string, amount: number) => void;
+}) {
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+
+  const submit = () => {
+    const trimmed = name.trim();
+    const parsed = Number(amount.replace(/[^0-9.-]/g, ''));
+    const amt = Number.isFinite(parsed) ? parsed : 0;
+    if (!trimmed && amt <= 0) return;
+    onAdd(trimmed, amt);
+    setName('');
+    setAmount('');
+  };
+
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Enter') submit();
+  };
+
+  return (
+    <div className="quickadd">
+      <input
+        className="input qa-name"
+        placeholder={placeholder}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={onKey}
+        enterKeyHint="done"
+      />
+      <div className="input-wrap qa-amt">
+        <span className="affix">£</span>
+        <input
+          className="input"
+          inputMode="decimal"
+          placeholder={amountPlaceholder}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          onKeyDown={onKey}
+          enterKeyHint="done"
+        />
+      </div>
+      <button className="btn btn-primary qa-add" type="button" onClick={submit} aria-label="Add">
+        +
+      </button>
+    </div>
+  );
 }
 
 /** Renders unique previously-used values as autocomplete suggestions. */

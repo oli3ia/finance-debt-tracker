@@ -1021,6 +1021,123 @@ body {
   margin-top: 10px;
 }
 
+/* ---------- Quick-add & accordion rows ---------- */
+
+.quickadd {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  margin-bottom: 4px;
+}
+
+.quickadd .qa-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.quickadd .qa-amt {
+  flex: 0 0 92px;
+  width: 92px;
+}
+
+.quickadd .qa-add {
+  flex: 0 0 42px;
+  width: 42px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.qlist {
+  list-style: none;
+}
+
+.qrow {
+  border-top: 1px solid var(--border);
+}
+.qrow:first-child {
+  border-top: none;
+}
+
+.qrow-sum {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 2px;
+  background: none;
+  border: none;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.qrow-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.qrow-name {
+  font-size: 15px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qrow-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qrow-amt {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.qrow-amt.positive {
+  color: var(--positive);
+}
+.qrow-amt.muted {
+  color: var(--muted);
+}
+
+.chev {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 16px;
+  transition: transform 0.2s ease;
+}
+.qrow.open .chev {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chev {
+    transition: none;
+  }
+}
+
+.qrow-edit {
+  padding: 0 2px 12px;
+}
+
+.qrow-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
 /* A month picker and its Apply button, side by side. */
 .repeat {
   display: flex;

@@ -39,6 +39,8 @@ import {
   Meter,
   NumberInput,
   TextInput,
+  AccordionRow,
+  QuickAdd,
   Button,
   DeleteButton,
   Empty,
@@ -85,19 +87,26 @@ function DebtEntry({ debt, month }: { debt: Debt; month: string }) {
     setPayAmount(0);
   };
 
+  const clearedPct =
+    debt.startBalance > 0.005
+      ? Math.round(((debt.startBalance - closing) / debt.startBalance) * 100)
+      : 0;
+  const summarySub =
+    payment > 0.005
+      ? fullyPaid
+        ? `Paid this month ✓ · ${clearedPct}% cleared`
+        : `${money(left)} left this month · ${clearedPct}% cleared`
+      : `${clearedPct}% cleared`;
+
   return (
-    <li className="entry">
-      <div className="entry-head">
+    <AccordionRow title={debt.name || 'Untitled'} sub={summarySub} value={money(opening)}>
+      <Field label="Name">
         <TextInput
           value={debt.name}
           onChange={(name) => updateDebt(debt.id, { name })}
           placeholder="Name, e.g. Credit Card"
         />
-        <DeleteButton
-          onClick={() => removeDebt(debt.id)}
-          label={`Delete ${debt.name || 'debt'}`}
-        />
-      </div>
+      </Field>
 
       <div className="entry-grid">
         <Field label="Starting balance">
@@ -261,7 +270,14 @@ function DebtEntry({ debt, month }: { debt: Debt; month: string }) {
           <Button onClick={() => trimDebtPlan(debt.id)}>Trim plan to the balance</Button>
         </div>
       )}
-    </li>
+
+      <div className="qrow-actions">
+        <DeleteButton
+          onClick={() => removeDebt(debt.id)}
+          label={`Delete ${debt.name || 'debt'}`}
+        />
+      </div>
+    </AccordionRow>
   );
 }
 
@@ -361,20 +377,17 @@ export function Debts() {
         </p>
       </Card>
 
-      <Card
-        title="Cards & loans"
-        action={
-          <Button variant="primary" onClick={addDebt}>
-            + Add
-          </Button>
-        }
-      >
+      <Card title="Cards & loans">
+        <QuickAdd
+          placeholder="Add a card or loan…"
+          onAdd={(name, amount) => addDebt({ name, startBalance: amount })}
+        />
         {debts.length === 0 ? (
-          <Empty>Nothing tracked. Add a credit card, loan or finance above.</Empty>
+          <Empty>Nothing tracked yet. Add a credit card, loan or finance above.</Empty>
         ) : active.length === 0 ? (
           <Empty>Everything's paid off 🎉</Empty>
         ) : (
-          <ul className="list">
+          <ul className="qlist">
             {active.map((d) => (
               <DebtEntry key={d.id} debt={d} month={month} />
             ))}
@@ -382,14 +395,11 @@ export function Debts() {
         )}
       </Card>
 
-      <Card
-        title={`One-off payments — ${monthLabel(month)}`}
-        action={
-          <Button variant="primary" onClick={() => addFlexPayment(month)}>
-            + Add
-          </Button>
-        }
-      >
+      <Card title={`One-off payments — ${monthLabel(month)}`}>
+        <QuickAdd
+          placeholder="Add a one-off…"
+          onAdd={(name, amount) => addFlexPayment(month, { name, amount })}
+        />
         {flex.length === 0 ? (
           <Empty>
             Nothing this month. Add a one-off for things like a buy-now-pay-later instalment,
@@ -397,21 +407,22 @@ export function Debts() {
           </Empty>
         ) : (
           <>
-            <ul className="list">
+            <ul className="qlist">
               {flex.map((f) => (
-                <li key={f.id} className="entry">
-                  <div className="entry-head">
+                <AccordionRow
+                  key={f.id}
+                  title={f.name || 'Untitled'}
+                  sub={f.account.trim() || 'No account'}
+                  value={money(f.amount)}
+                >
+                  <Field label="Name">
                     <TextInput
                       value={f.name}
                       onChange={(name) => updateFlexPayment(f.id, { name })}
                       placeholder="e.g. Buy Now Pay Later"
                       list="flex-names"
                     />
-                    <DeleteButton
-                      onClick={() => removeFlexPayment(f.id)}
-                      label={`Delete ${f.name || 'payment'}`}
-                    />
-                  </div>
+                  </Field>
                   <div className="entry-grid">
                     <Field label="Amount">
                       <NumberInput
@@ -429,7 +440,13 @@ export function Debts() {
                       />
                     </Field>
                   </div>
-                </li>
+                  <div className="qrow-actions">
+                    <DeleteButton
+                      onClick={() => removeFlexPayment(f.id)}
+                      label={`Delete ${f.name || 'payment'}`}
+                    />
+                  </div>
+                </AccordionRow>
               ))}
             </ul>
             <div className="divider" />

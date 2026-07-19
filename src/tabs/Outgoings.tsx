@@ -7,7 +7,8 @@ import {
   Field,
   NumberInput,
   TextInput,
-  Button,
+  AccordionRow,
+  QuickAdd,
   DeleteButton,
   Empty,
   Suggestions,
@@ -48,31 +49,29 @@ export function Outgoings() {
         )}
       </Card>
 
-      <Card
-        title="All outgoings"
-        action={
-          <Button variant="primary" onClick={addOutgoing}>
-            + Add
-          </Button>
-        }
-      >
+      <Card title="All outgoings">
+        <QuickAdd
+          placeholder="Add an outgoing…"
+          onAdd={(name, amount) => addOutgoing({ name, amount })}
+        />
         {outgoings.length === 0 ? (
           <Empty>No outgoings yet. Add your first one above.</Empty>
         ) : (
-          <ul className="list">
+          <ul className="qlist">
             {outgoings.map((o) => (
-              <li key={o.id} className="entry">
-                <div className="entry-head">
+              <AccordionRow
+                key={o.id}
+                title={o.name || 'Untitled'}
+                sub={`${o.category.trim() || 'Uncategorised'} · ${o.account.trim() || 'No account'}`}
+                value={money(o.amount)}
+              >
+                <Field label="Name">
                   <TextInput
                     value={o.name}
                     onChange={(name) => updateOutgoing(o.id, { name })}
                     placeholder="Name, e.g. Car Insurance"
                   />
-                  <DeleteButton
-                    onClick={() => removeOutgoing(o.id)}
-                    label={`Delete ${o.name || 'outgoing'}`}
-                  />
-                </div>
+                </Field>
                 <div className="entry-grid">
                   <Field label="Amount">
                     <NumberInput
@@ -98,7 +97,13 @@ export function Outgoings() {
                     />
                   </Field>
                 </div>
-              </li>
+                <div className="qrow-actions">
+                  <DeleteButton
+                    onClick={() => removeOutgoing(o.id)}
+                    label={`Delete ${o.name || 'outgoing'}`}
+                  />
+                </div>
+              </AccordionRow>
             ))}
           </ul>
         )}

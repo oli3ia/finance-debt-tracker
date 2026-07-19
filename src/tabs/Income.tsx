@@ -8,7 +8,6 @@ import {
   Stat,
   Field,
   NumberInput,
-  Button,
   DeleteButton,
   Empty,
 } from '../components/ui';
@@ -95,24 +94,27 @@ export function Income() {
       </Card>
 
       <Card title="Log overtime">
-        <div className="log-form">
-          <Field label="Date">
-            <input
-              className="input"
-              type="date"
-              value={date}
-              min={min}
-              max={max}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </Field>
-          <Field label="Hours">
+        <div className="quickadd">
+          <input
+            className="input qa-name"
+            type="date"
+            value={date}
+            min={min}
+            max={max}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <div className="qa-amt">
             <NumberInput value={newHours} onChange={setNewHours} suffix="h" />
-          </Field>
+          </div>
+          <button
+            className="btn btn-primary qa-add"
+            type="button"
+            onClick={logHours}
+            aria-label="Log hours"
+          >
+            +
+          </button>
         </div>
-        <Button variant="primary" onClick={logHours}>
-          + Add hours
-        </Button>
       </Card>
 
       <Card title={`Overtime — ${monthLabel(month)}`}>

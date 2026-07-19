@@ -289,11 +289,11 @@ interface Store {
   setBasePay: (pay: number) => void;
   setMonthOverride: (month: MonthKey, patch: MonthOverride) => void;
 
-  addOutgoing: () => void;
+  addOutgoing: (init?: Partial<Outgoing>) => void;
   updateOutgoing: (id: string, patch: Partial<Outgoing>) => void;
   removeOutgoing: (id: string) => void;
 
-  addDebt: () => void;
+  addDebt: (init?: Partial<Debt>) => void;
   updateDebt: (id: string, patch: Partial<Debt>) => void;
   setDebtPayment: (id: string, month: MonthKey, amount: number) => void;
   /** Writes the same payment into every month from `from` to `to` inclusive. */
@@ -306,7 +306,7 @@ interface Store {
   removeDebtContribution: (id: string, contribId: string) => void;
   removeDebt: (id: string) => void;
 
-  addFlexPayment: (month: MonthKey) => void;
+  addFlexPayment: (month: MonthKey, init?: Partial<FlexPayment>) => void;
   updateFlexPayment: (id: string, patch: Partial<FlexPayment>) => void;
   removeFlexPayment: (id: string) => void;
 
@@ -531,18 +531,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return { ...s, monthOverrides: { ...s.monthOverrides, [m]: next } };
         }),
 
-      addOutgoing: () =>
+      addOutgoing: (init) =>
         setState((s) => ({
           ...s,
           outgoings: [
             ...s.outgoings,
-            { id: uid(), name: '', amount: 0, account: '', category: '' },
+            { id: uid(), name: '', amount: 0, account: '', category: '', ...init },
           ],
         })),
       updateOutgoing: (id, patch) => patchList('outgoings', id, patch),
       removeOutgoing: (id) => removeFrom('outgoings', id),
 
-      addDebt: () =>
+      addDebt: (init) =>
         setState((s) => ({
           ...s,
           debts: [
@@ -555,6 +555,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               payments: {},
               contributions: [],
               account: '',
+              ...init,
             },
           ],
         })),
@@ -639,12 +640,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removeDebt: (id) => removeFrom('debts', id),
 
       // Belongs to one month only. Deleting it touches nothing else.
-      addFlexPayment: (m) =>
+      addFlexPayment: (m, init) =>
         setState((s) => ({
           ...s,
           flexPayments: [
             ...s.flexPayments,
-            { id: uid(), name: '', month: m, amount: 0, account: '' },
+            { id: uid(), name: '', month: m, amount: 0, account: '', ...init },
           ],
         })),
       updateFlexPayment: (id, patch) => patchList('flexPayments', id, patch),
