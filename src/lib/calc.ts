@@ -281,6 +281,62 @@ export function payoff(debts: Debt[], from: MonthKey) {
   return { month: null, shortfall };
 }
 
+/* ---------- Trends / history ----------
+ * Reconstructed from the current month-aware state: the debt plan, dated overtime,
+ * per-month pay overrides and the goal windows. Outgoings are treated as recurring
+ * (the app doesn't record them per month), so this is an honest reconstruction, not
+ * a stored ledger — labelled as such in the UI.
+ */
+
+export interface TrendPoint {
+  month: MonthKey;
+  value: number;
+}
+
+/** The earliest month any data refers to, for bounding the trends window. */
+export function earliestMonth(state: AppState): MonthKey | null {
+  const months: MonthKey[] = [];
+  for (const d of state.debts) {
+    months.push(d.startMonth, ...Object.keys(d.payments));
+  }
+  for (const g of state.goals) months.push(g.startMonth);
+  for (const e of state.overtime) months.push(monthKeyOf(e.date));
+  for (const f of state.flexPayments) months.push(f.month);
+  months.push(...Object.keys(state.monthOverrides));
+  return months.length ? months.sort()[0] : null;
+}
+
+/** Total debt owed at the start of each month across the window. */
+export function debtSeries(debts: Debt[], from: MonthKey, count: number): TrendPoint[] {
+  return Array.from({ length: count }, (_, i) => {
+    const month = shiftMonth(from, i);
+    return { month, value: totalOwed(debts, month) };
+  });
+}
+
+/** Money left at the end of each month across the window (can be negative). */
+export function remainingSeries(state: AppState, from: MonthKey, count: number): TrendPoint[] {
+  return Array.from({ length: count }, (_, i) => {
+    const month = shiftMonth(from, i);
+    return { month, value: summarise(state, month).remaining };
+  });
+}
+
+/** Where the money goes in one month: outgoing categories, plus debt and savings. */
+export function spendingByCategory(state: AppState, month: MonthKey) {
+  const cats = new Map<string, number>();
+  for (const o of state.outgoings) {
+    const key = o.category.trim() || 'Uncategorised';
+    cats.set(key, (cats.get(key) ?? 0) + o.amount);
+  }
+  const rows = [...cats.entries()].map(([category, amount]) => ({ category, amount }));
+  const debt = totalPayments(state.debts, month) + flexTotal(state.flexPayments, month);
+  const savings = state.goals.reduce((sum, g) => sum + monthlyRequired(g, month), 0);
+  if (debt > 0.005) rows.push({ category: 'Debt payments', amount: debt });
+  if (savings > 0.005) rows.push({ category: 'Savings', amount: savings });
+  return rows.filter((r) => r.amount > 0.005).sort((a, b) => b.amount - a.amount);
+}
+
 /* ---------- Savings goals ---------- */
 
 /**

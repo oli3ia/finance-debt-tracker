@@ -7,6 +7,7 @@ import { Income } from './tabs/Income';
 import { Outgoings } from './tabs/Outgoings';
 import { Debts } from './tabs/Debts';
 import { Goals } from './tabs/Goals';
+import { Trends } from './tabs/Trends';
 import { Settings } from './tabs/Settings';
 
 const TABS = [
@@ -15,11 +16,12 @@ const TABS = [
   { id: 'outgoings', label: 'Out', icon: '↓' },
   { id: 'debts', label: 'Debt', icon: '▤' },
   { id: 'goals', label: 'Goals', icon: '★' },
+  { id: 'trends', label: 'Trends', icon: '↗' },
   { id: 'settings', label: 'More', icon: '⚙' },
 ] as const;
 
 /** Outgoings are recurring, so they're the only tab the month picker doesn't drive. */
-const MONTH_AWARE_TABS = new Set(['dashboard', 'income', 'debts', 'goals']);
+const MONTH_AWARE_TABS = new Set(['dashboard', 'income', 'debts', 'goals', 'trends']);
 
 function Shell() {
   const { month, stepMonth, setMonth } = useStore();
@@ -65,6 +67,7 @@ function Shell() {
         {tab === 'outgoings' && <Outgoings />}
         {tab === 'debts' && <Debts />}
         {tab === 'goals' && <Goals />}
+        {tab === 'trends' && <Trends />}
         {tab === 'settings' && <Settings />}
       </main>
 

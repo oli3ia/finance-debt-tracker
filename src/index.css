@@ -118,7 +118,7 @@ body {
   position: sticky;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   background: var(--surface);
   border-top: 1px solid var(--border);
   /* Clears the iOS home indicator. */
@@ -130,12 +130,12 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 9px 2px;
+  padding: 9px 1px;
   min-height: 56px;
   background: none;
   border: none;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9.5px;
 }
 
 .tab.active {
@@ -469,11 +469,202 @@ body {
 /* Track token, defined here so meters work without touching :root elsewhere. */
 :root {
   --track: #e6e8ee;
+  --grid: #edeef2;
+  /* Colourblind-validated categorical palette (light). */
+  --cat-1: #2a78d6;
+  --cat-2: #1baf7a;
+  --cat-3: #eda100;
+  --cat-4: #008300;
+  --cat-5: #4a3aa7;
+  --cat-6: #e34948;
+  --cat-7: #e87ba4;
+  --cat-8: #eb6834;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --track: #262b34;
+    --grid: #23262e;
+    /* Same hues stepped for the dark surface. */
+    --cat-1: #3987e5;
+    --cat-2: #199e70;
+    --cat-3: #c98500;
+    --cat-4: #008300;
+    --cat-5: #9085e9;
+    --cat-6: #e66767;
+    --cat-7: #d55181;
+    --cat-8: #d95926;
   }
+}
+
+/* ---------- Trends ---------- */
+
+.rangepick {
+  display: inline-flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.rangepick button {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border: none;
+  background: none;
+  color: var(--muted);
+}
+
+.rangepick button.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tr-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.tr-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+}
+
+.tr-tile .t-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.tr-tile .t-val {
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tr-tile .t-val.positive {
+  color: var(--positive);
+}
+.tr-tile .t-val.negative {
+  color: var(--negative);
+}
+
+.tr-tile .t-note {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.tr-lead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tr-big {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tr-delta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--positive);
+  font-variant-numeric: tabular-nums;
+}
+
+.tr-area {
+  width: 100%;
+  height: 96px;
+  display: block;
+  overflow: visible;
+}
+
+.tr-updown {
+  width: 100%;
+  height: 92px;
+  display: block;
+  overflow: visible;
+  margin-top: 8px;
+}
+
+.tr-xaxis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.tr-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.tr-legend .k {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tr-legend .sw,
+.tr-catrow .sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.tr-cat {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.tr-catrow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+
+.tr-catrow .cname {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+}
+
+.tr-catrow .camt {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tr-catrow .tr-cbar {
+  grid-column: 1 / -1;
+  height: 8px;
+  background: var(--track);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tr-catrow .tr-cbar > i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
 }
 
 /* ---------- Hero & stats ---------- */
